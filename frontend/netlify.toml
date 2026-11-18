@@ -1,0 +1,26 @@
+# Despliegue del frontend en Netlify (publicar la carpeta frontend/).
+# Netlify solo sirve archivos estáticos: la API (Flask) y PostgreSQL deben
+# estar en otro servicio (Railway, Render, etc.).
+#
+# Netlify reenvía /api/* a la API en Railway: el navegador habla con un solo
+# origen y la política de seguridad (CSP) no cambia. Si la API cambia de
+# dirección, actualice la línea "to" de abajo.
+
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://api-production-9fb4dbbb.up.railway.app/api/:splat"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

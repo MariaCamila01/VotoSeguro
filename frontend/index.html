@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base" content="/api/v1">
+  <title>VotoSeguro Bogotá — Votar</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script type="module" src="js/votante.js"></script>
+</head>
+<body>
+<main class="contenedor angosto">
+
+  <header class="barra">
+    <div class="marca">
+      <div class="marca-logo" aria-hidden="true">VS</div>
+      <div>
+        <h1>VotoSeguro Bogotá</h1>
+        <p>Votación institucional verificable</p>
+      </div>
+    </div>
+    <span class="insignia" id="estadoServicio">Conectando…</span>
+  </header>
+
+  <ol class="pasos" aria-label="Progreso">
+    <li data-paso="1" class="activo">Identificación</li>
+    <li data-paso="2">Código</li>
+    <li data-paso="3">Voto</li>
+    <li data-paso="4">Comprobante</li>
+  </ol>
+
+  <!-- Paso 1: documento + autorización de datos -->
+  <section class="tarjeta" id="paso1">
+    <h2>Identifíquese</h2>
+    <p class="tenue">Le enviaremos un código de un solo uso a su correo institucional.</p>
+    <form id="formSolicitar" novalidate>
+      <div class="campo">
+        <label for="eleccion">Elección</label>
+        <select id="eleccion" required></select>
+      </div>
+      <div class="campo">
+        <label for="documento">Documento institucional</label>
+        <input id="documento" type="text" inputmode="text" autocomplete="off"
+               maxlength="20" placeholder="Ej. UMB2026001" required>
+      </div>
+      <label class="check">
+        <input id="autorizacion" type="checkbox" required>
+        <span>Autorizo el tratamiento de mi documento y correo institucional
+          <strong>solo</strong> para verificar que puedo votar, según la
+          <a href="politica-datos.html" target="_blank" rel="noopener">política de tratamiento de datos</a>
+          (Ley 1581 de 2012).</span>
+      </label>
+      <button class="btn btn-primario btn-bloque" type="submit" id="btnSolicitar">Enviar código</button>
+      <div class="mensaje" id="msg1" role="alert"></div>
+    </form>
+  </section>
+
+  <!-- Paso 2: OTP -->
+  <section class="tarjeta oculto" id="paso2">
+    <h2>Ingrese el código</h2>
+    <p class="tenue" id="textoDestino">Revise su correo.</p>
+    <form id="formVerificar" novalidate>
+      <div class="campo">
+        <label for="otp">Código de 6 dígitos</label>
+        <input id="otp" class="input-otp" type="text" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" pattern="\d{6}" required>
+      </div>
+      <p class="tenue pequeno" id="vigenciaOtp"></p>
+      <div class="acciones">
+        <button class="btn btn-primario" type="submit" id="btnVerificar">Verificar</button>
+        <button class="btn btn-secundario" type="button" id="btnReenviar">Reenviar código</button>
+        <button class="btn btn-secundario" type="button" id="btnVolver">Cambiar documento</button>
+      </div>
+      <div class="mensaje" id="msg2" role="alert"></div>
+    </form>
+  </section>
+
+  <!-- Paso 3: selección -->
+  <section class="tarjeta oculto" id="paso3">
+    <h2 id="tituloEleccion">Seleccione una opción</h2>
+    <div class="temporizador"><span>Tiempo para votar</span><span id="reloj">10:00</span></div>
+    <div class="barra-tiempo"><div id="barraTiempo"></div></div>
+    <div class="opciones" id="opciones" role="group" aria-label="Opciones de voto"></div>
+    <button class="btn btn-primario btn-bloque" id="btnContinuar" disabled>Continuar</button>
+    <div class="mensaje" id="msg3" role="alert"></div>
+  </section>
+
+  <!-- Paso 4: comprobante -->
+  <section class="tarjeta comprobante oculto" id="paso4">
+    <div class="icono" aria-hidden="true">✓</div>
+    <h2>Su voto fue registrado</h2>
+    <p class="tenue">Guarde el número de confirmación: con él puede comprobar en cualquier momento
+      que su voto está en la cadena. No revela por quién votó.</p>
+    <dl class="datos">
+      <dt>Número de confirmación</dt><dd class="mono" id="cConfirmacion"></dd>
+      <dt>Bloque</dt><dd id="cIndice"></dd>
+      <dt>Hash del bloque</dt><dd class="mono" id="cHash"></dd>
+      <dt>Fecha</dt><dd id="cFecha"></dd>
+    </dl>
+    <div class="acciones centro">
+      <button class="btn btn-secundario" id="btnCopiar">Copiar confirmación</button>
+      <button class="btn btn-primario" id="btnTerminar">Terminar</button>
+    </div>
+  </section>
+
+  <!-- Verificar comprobante -->
+  <section class="tarjeta">
+    <h2>¿Ya votó? Verifique su comprobante</h2>
+    <p class="tenue">Consulte que su voto sigue registrado en el ledger.</p>
+    <form id="formComprobante" class="acciones" novalidate>
+      <input id="confirmacion" class="crece" type="text" placeholder="Número de confirmación">
+      <button class="btn btn-secundario" type="submit">Verificar</button>
+    </form>
+    <div class="mensaje" id="msgComprobante" role="status"></div>
+  </section>
+
+  <p class="pie">VotoSeguro Bogotá · Universidad Manuela Beltrán · <a href="admin.html">Panel de administración</a></p>
+</main>
+
+<div class="modal oculto" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+  <div class="tarjeta">
+    <h2 id="modalTitulo">Confirme su voto</h2>
+    <p class="tenue" id="modalTexto"></p>
+    <p class="pequeno tenue separado">Una vez confirmado no se puede cambiar.</p>
+    <div class="acciones separado">
+      <button class="btn btn-secundario" id="btnCancelar">Cancelar</button>
+      <button class="btn btn-primario" id="btnConfirmar">Confirmar voto</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
