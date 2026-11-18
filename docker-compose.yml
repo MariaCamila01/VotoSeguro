@@ -1,0 +1,92 @@
+# VotoSeguro Bogotá — Infraestructura Docker (diagrama de componentes)
+#
+#   navegador ──HTTPS──▶ proxy (nginx, TLS) ──▶ api (Flask/Gunicorn) ──▶ db (PostgreSQL)
+#                                                    └──SMTP──▶ mailpit (correo de pruebas)
+#
+# Uso:  cp .env.example .env   (y cambie los secretos)
+#       docker compose up --build
+name: votoseguro
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+      - ./db/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Sin puertos publicados: la base de datos solo es accesible desde la red interna.
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ENTORNO: ${ENTORNO:-desarrollo}
+      DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      CLAVE_HMAC: ${CLAVE_HMAC}
+      CLAVE_CIFRADO_DATOS: ${CLAVE_CIFRADO_DATOS}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USUARIO: ${SMTP_USUARIO:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_REMITENTE: ${SMTP_REMITENTE:-VotoSeguro Bogotá <no-responder@votoseguro.local>}
+      ADMIN_USUARIO: ${ADMIN_USUARIO}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      AUDITOR_USUARIO: ${AUDITOR_USUARIO}
+      AUDITOR_PASSWORD: ${AUDITOR_PASSWORD}
+      SEMBRAR_DEMO: ${SEMBRAR_DEMO:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  proxy:
+    build: ./proxy
+    restart: unless-stopped
+    environment:
+      PUERTO_HTTPS: ${PUERTO_HTTPS:-8443}
+      DOMINIO: ${DOMINIO:-localhost}
+    ports:
+      - "${PUERTO_HTTP:-8080}:80"
+      - "${PUERTO_HTTPS:-8443}:443"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - certificados:/etc/nginx/certs
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Bandeja de correo de pruebas: aquí llegan los códigos OTP (http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  # Opcional:  docker compose --profile herramientas up
+  adminer:
+    image: adminer:4
+    profiles: ["herramientas"]
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  datos_db:
+  certificados:
